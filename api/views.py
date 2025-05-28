@@ -239,6 +239,48 @@ class GuessLetterAPIView(APIView):
 
 
 
+
+
+class CancelGameAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, game_id):
+        game = get_object_or_404(Game, id=game_id)
+
+        if request.user != game.player1 and request.user != game.player2:
+            return Response({'error': 'You are not part of this game'}, status=403)
+
+        game.status = 'finished'
+        game.save()
+        return Response({'message': 'Game cancelled'}, status=200)
+
+
+
+
+
+class GameStatusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, game_id):
+        game = get_object_or_404(Game, id=game_id)
+
+        # Optional: Only allow game participants to see status
+        if request.user != game.player1 and (game.player2 and request.user != game.player2):
+            return Response({'error': 'You are not part of this game'}, status=403)
+
+        data = {
+            'game_id': game.id,
+            'status': game.status,
+            'player1': game.player1.username if game.player1 else None,
+            'player2': game.player2.username if game.player2 else None
+        }
+        return Response(data, status=200)
+
+
+
+
+
+
 class PauseGameAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -318,20 +360,6 @@ class ProfileAPIView(APIView):
         return Response(serializer.data)
 
 
-
-
-# class GameDetailAPIView(APIView):
-#     permission_classes = [IsAuthenticated]
-#
-#     def get(self, request, game_id):
-#         user = request.user
-#         game = get_object_or_404(Game, id=game_id)
-#
-#         if game.player1 != user and game.player2 != user:
-#             return Response({'detail': 'شما به این بازی دسترسی ندارید.'}, status=status.HTTP_403_FORBIDDEN)
-#
-#         serializer = GameSerializer(game)
-#         return Response(serializer.data)
 
 
 

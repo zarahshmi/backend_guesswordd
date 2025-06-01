@@ -8,12 +8,11 @@ from api.models import Player, Word, Game, Guess
 import random
 from django.utils import timezone
 from api.serializers import GameCreateSerializer, WaitingGameSerializer, GameSerializer, GameListSerializer, \
-    ProfileSerializer
+    ProfileSerializer,PlayerSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from api.serializers import GameHistorySerializer, LeaderboardSerializer,GameSerializer
-from rest_framework import status
-
+from rest_framework import status, permissions
 
 
 
@@ -260,24 +259,46 @@ class CancelGameAPIView(APIView):
 
 
 
-
 class GameStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, game_id):
         game = get_object_or_404(Game, id=game_id)
 
-        # Optional: Only allow game participants to see status
+        # فقط بازیکن‌های داخل بازی دسترسی دارند
         if request.user != game.player1 and (game.player2 and request.user != game.player2):
             return Response({'error': 'You are not part of this game'}, status=403)
+
+        # محاسبه برنده اگر بازی تمام شده باشد
+        winner = None
+        if game.status == 'finished':
+            if game.player1_score > game.player2_score:
+                winner = game.player1.username
+            elif game.player2_score > game.player1_score:
+                winner = game.player2.username
+            # else: مساوی
 
         data = {
             'game_id': game.id,
             'status': game.status,
             'player1': game.player1.username if game.player1 else None,
-            'player2': game.player2.username if game.player2 else None
+            'player2': game.player2.username if game.player2 else None,
+            'turn': game.turn.username if game.turn else None,
+            'masked_word': game.masked_word,
+            'your_score': self.get_player_score(request.user, game),
+            'player1_score': game.player1_score,
+            'player2_score': game.player2_score,
+            'winner': winner
         }
         return Response(data, status=200)
+
+    def get_player_score(self, user, game):
+        if user == game.player1:
+            return game.player1_score
+        elif user == game.player2:
+            return game.player2_score
+        return 0
+
 
 
 
@@ -390,24 +411,20 @@ class LeaderboardAPIView(APIView):
 
 
 
-class GamePollingAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def get(self, request, game_id):
-        game = get_object_or_404(Game, id=game_id)
 
-        if request.user != game.player1 and (game.player2 and request.user != game.player2):
-            return Response({'error': 'You are not part of this game'}, status=403)
+class ProfileEditView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
-        return Response({
-            'game_id': game.id,
-            'masked_word': game.masked_word,
-            'player1': game.player1.username,
-            'player2': game.player2.username if game.player2 else None,
-            'player1_score': game.player1_score,
-            'player2_score': game.player2_score,
-            'turn': game.turn.username if game.turn else None,
-            'status': game.status,
-            'is_finished': game.status == 'finished',
-            'word': game.word if game.status == 'finished' else None,
-        })
+    def get(self, request):
+        player = request.user
+        serializer = PlayerSerializer(player)
+        return Response(serializer.data)
+
+    def put(self, request):
+        player = request.user
+        serializer = PlayerSerializer(player, data=request.data, partial=True)  # partial=True یعنی فقط فیلدهای ارسال شده آپدیت میشن
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

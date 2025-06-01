@@ -234,7 +234,10 @@ class GuessLetterAPIView(APIView):
             'correct': correct,
             'next_turn': game.turn.username if game.status != 'finished' and game.turn else None,
             'game_status': game.status,
-            'your_score': your_game_score
+            'your_score': your_game_score,
+            'player1_score': game.player1_score,
+            'player2_score': game.player2_score,
+            'winner': game.turn.username if game.status == 'finished' and game.turn else None
         })
 
 
@@ -383,3 +386,28 @@ class LeaderboardAPIView(APIView):
         serializer = LeaderboardSerializer(top_players, many=True)
         return Response(serializer.data)
 
+
+
+
+
+class GamePollingAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, game_id):
+        game = get_object_or_404(Game, id=game_id)
+
+        if request.user != game.player1 and (game.player2 and request.user != game.player2):
+            return Response({'error': 'You are not part of this game'}, status=403)
+
+        return Response({
+            'game_id': game.id,
+            'masked_word': game.masked_word,
+            'player1': game.player1.username,
+            'player2': game.player2.username if game.player2 else None,
+            'player1_score': game.player1_score,
+            'player2_score': game.player2_score,
+            'turn': game.turn.username if game.turn else None,
+            'status': game.status,
+            'is_finished': game.status == 'finished',
+            'word': game.word if game.status == 'finished' else None,
+        })

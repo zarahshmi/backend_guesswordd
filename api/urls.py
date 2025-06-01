@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from api.views import RegisterAPIView, CreateGameAPIView, WaitingGamesAPIView, JoinGameAPIView, GuessLetterAPIView, \
     PauseGameAPIView, ResumeGameAPIView, ProfileAPIView, HistoryAPIView, LeaderboardAPIView, CancelGameAPIView, \
-    GameStatusAPIView
+    GameStatusAPIView,GamePollingAPIView
 
 urlpatterns = [
     path('register/', RegisterAPIView.as_view(), name='register'),
@@ -21,6 +21,7 @@ urlpatterns = [
     path('games/<int:game_id>/status/', GameStatusAPIView.as_view(), name='game_status'),
     path('games/<int:game_id>/pause/', PauseGameAPIView.as_view(), name='pause_game'),
     path('games/<int:game_id>/resume/', ResumeGameAPIView.as_view(), name='resume_game'),
+    path('games/<int:game_id>/poll/', GamePollingAPIView.as_view(), name='game-poll'),
 
 
     path('history/', HistoryAPIView.as_view(), name='game-history'),
